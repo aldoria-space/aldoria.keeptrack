@@ -5,6 +5,7 @@ import { ColorPick } from '@app/lib/color-pick';
 import { getEl } from '@app/lib/get-el';
 import { parseRgba } from '@app/lib/rgba';
 import { rgbCss } from '@app/lib/rgbCss';
+import { SettingsManager } from '@app/settings/settings';
 import { PersistenceManager, StorageKey } from '@app/singletons/persistence-manager';
 import { LegendManager } from '@app/static/legend-manager';
 import { OrbitCruncherType, OrbitDrawTypes } from '@app/webworker/orbitCruncher';
@@ -12,7 +13,6 @@ import settingsPng from '@public/img/icons/settings.png';
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
 import { SoundNames } from '../sounds/SoundNames';
 import { TimeMachine } from '../time-machine/time-machine';
-import { SettingsManager } from '@app/settings/settings';
 
 /**
  * /////////////////////////////////////////////////////////////////////////////
@@ -286,11 +286,24 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 </center>
               </div>
               <div class="input-field col s6">
+              <center>
+                <p>Special Sats</p>
+                <button id="settings-color-special" class="btn waves-effect waves-light"></button>
+              </center>
+            </div>
+            <div class="row">
+              <div class="input-field col s6">
                 <center>
-                  <p>In View</p>
+                  <p>In FOV</p>
                   <button id="settings-color-inview" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
+              <div class="input-field col s6">
+              <center>
+                <p>Observable</p>
+                <button id="settings-color-isobservable" class="btn waves-effect waves-light"></button>
+              </center>
+            </div>
             </div>
             <div class="row">
               <div class="input-field col s6">
@@ -303,14 +316,6 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 <center>
                   <p>Missile (FOV)</p>
                   <button id="settings-color-missileInview" class="btn waves-effect waves-light"></button>
-                </center>
-              </div>
-            </div>
-            <div class="row">
-              <div class="input-field col s6">
-                <center>
-                  <p>Special Sats</p>
-                  <button id="settings-color-special" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
             </div>
@@ -425,9 +430,14 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
           onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'debris'),
         });
         ColorPick.initColorPick('#settings-color-inview', {
-          initialColor: rgbCss(settingsManager.colors?.inFOV || [0.85, 0.5, 0.0, 1.0]),
+          initialColor: rgbCss(settingsManager.colors?.inFOV || [0.85, 0.5, 0.5, 1.0]),
           palette: colorPalette,
           onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'inview'),
+        });
+        ColorPick.initColorPick('#settings-color-isobservable', {
+          initialColor: rgbCss(settingsManager.colors?.sensorCanObserve || [0.85, 0.5, 0.0, 1.0]),
+          palette: colorPalette,
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'sensorCanObserve'),
         });
         ColorPick.initColorPick('#settings-color-missile', {
           initialColor: rgbCss(settingsManager.colors?.missile || [1.0, 1.0, 0.0, 1.0]),
@@ -613,7 +623,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
     settingsManager.isShowDebris = true;
     settingsManager.isShowAgencies = false;
     settingsManager.isDrawOrbits = true;
-    settingsManager.drawCameraWidget = false;
+    settingsManager.drawCameraWidget = true;
     settingsManager.isDrawTrailingOrbits = false;
     settingsManager.isOrbitCruncherInEcf = false;
     settingsManager.isDrawInCoverageLines = true;

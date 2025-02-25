@@ -38,6 +38,7 @@ import { CatalogSearch } from '@app/static/catalog-search';
 import analysisPng from '@public/img/icons/analysis.png';
 import { DetailedSatellite, DetailedSensor, eci2rae, EciVec3, Kilometers, MILLISECONDS_PER_SECOND, MINUTES_PER_DAY, SatelliteRecord, TAU } from 'ootk';
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 import { WatchlistPlugin } from '../watchlist/watchlist';
 
 export class AnalysisMenu extends KeepTrackPlugin {
@@ -708,11 +709,20 @@ export class AnalysisMenu extends KeepTrackPlugin {
     // Get watchlist satellites
     const idList = keepTrackApi.getPlugin(WatchlistPlugin).getSatellites();
 
+    // Get selected satellites
+    let satList = [];
+    try {
+      const selectedSat = keepTrackApi.getPlugin(SelectSatManager).getSelectedSat().id ?? [];
+      satList = idList.concat(selectedSat);
+    } catch (e) {
+      satList = idList;
+    }
+
     // For each satellite loop through 72 hours at 30 second intervals
     const durationInSeconds = 72 * 60 * 60;
     const overflights = [];
 
-    for (const satId of idList) {
+    for (const satId of satList) {
       const sat = keepTrackApi.getCatalogManager().getSat(satId);
       let time = this.getStartTime_();
 

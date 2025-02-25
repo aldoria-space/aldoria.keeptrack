@@ -58,6 +58,7 @@ export class SatInfoBox extends KeepTrackPlugin {
   private isSensorDataSectionCollapsed_ = false;
   private isObjectDataSectionCollapsed_ = false;
   private isMissionSectionCollapsed_ = false;
+  private isSunAngleDrawn_ = false;
 
   currentTEARR = <TearrData>{
     az: 0,
@@ -334,14 +335,58 @@ export class SatInfoBox extends KeepTrackPlugin {
           }
 
           if (this.selectSatManager_.secondarySat !== -1 && obj.isSatellite()) {
-            const sat = obj as DetailedSatellite;
-            const ric = CoordinateTransforms.sat2ric(this.selectSatManager_.secondarySatObj, sat);
-            const dist = SensorMath.distanceString(sat, this.selectSatManager_.secondarySatObj).split(' ')[2];
+            // Specific satellite data
+            const satP = obj as DetailedSatellite;
+            const satS = this.selectSatManager_.secondarySatObj
+            const ric = CoordinateTransforms.sat2ric(satS, satP);
+            const dist = SensorMath.distanceString(satP, satS).split(' ')[2];
+            const vel = SensorMath.velocityString(satP, satS).split(' ')[3];
+            const sunAngle = SatMath.sunAngle(satP, satS);
 
+            // TODO: Compute relative position for the next 5 orbits
+            // Time management for relative position
+            // const now = keepTrackApi.getTimeManager().simulationTimeObj.getTime();
+            // const timeData: Date[] = [];
+            // const NUMBER_OF_ORBITS = 5;
+            // const NUMBER_OF_POINTS = 1000 * NUMBER_OF_ORBITS;
+            //
+            // for (let i = 0; i < NUMBER_OF_POINTS; i++) {
+            //   const date = new Date(now + satS.period * 60 * i / (NUMBER_OF_POINTS) * 1000);  // check the nb point
+            //   timeData.push(date);
+            // }
+            // const relativeDistanceVect = SatMathApi.getRicOfCurrentOrbit(satP, satS, NUMBER_OF_POINTS, NUMBER_OF_ORBITS);
+
+            // const { index: minIndex, magnitude: minRelDist } = relativeDistanceVect.reduce((_, curr, idx) => ({
+            //   index: idx,
+            //   vector: curr,
+            //   magnitude: Math.sqrt(curr.x ** 2 + curr.y ** 2 + curr.z ** 2)
+            // }), { index: 0, vector: relativeDistanceVect[0], magnitude: Infinity }).magnitude < Infinity ?
+            //   relativeDistanceVect.reduce((acc, curr, idx) => {
+            //     const magnitude = Math.sqrt(curr.x ** 2 + curr.y ** 2 + curr.z ** 2);
+            //     return acc.magnitude < magnitude ? acc : { index: idx, vector: curr, magnitude };
+            //   }, { index: 0, magnitude: Infinity }) :
+            //   { index: 0 };
+            //
+            // const timeClosestApproach = timeData[minIndex]
+            //
+            // Write HTML data
+            // getEl('sat-sec-tca').innerHTML = `${timeClosestApproach.toISOString().slice(0, 19)}<br>${minRelDist.toFixed(2)} km `;
+            getEl('sat-sec-vel').innerHTML = `${vel} km/s`;
             getEl('sat-sec-dist').innerHTML = `${dist} km`;
-            getEl('sat-sec-rad').innerHTML = `${ric.position[0].toFixed(2)}km`;
-            getEl('sat-sec-intrack').innerHTML = `${ric.position[1].toFixed(2)}km`;
-            getEl('sat-sec-crosstrack').innerHTML = `${ric.position[2].toFixed(2)}km`;
+            getEl('sat-sec-rad').innerHTML = `${ric.position[0].toFixed(2)} km`;
+            getEl('sat-sec-intrack').innerHTML = `${ric.position[1].toFixed(2)} km`;
+            getEl('sat-sec-crosstrack').innerHTML = `${ric.position[2].toFixed(2)} km`;
+
+            // Change sun angle color
+            if (sunAngle < 90) {
+              // Good viewing condition
+              getEl('sat-sec-sunangle').innerHTML = `${sunAngle.toFixed(2)}° (easy to see)`;
+              getEl('sat-sec-sunangle').style.color = 'green';
+            }
+            else {
+              getEl('sat-sec-sunangle').innerHTML = `${sunAngle.toFixed(2)}° (hard to see)`;
+              getEl('sat-sec-sunangle').style.color = 'red';
+            }
           }
 
           if (sensorManagerInstance.isSensorSelected()) {
@@ -559,6 +604,33 @@ export class SatInfoBox extends KeepTrackPlugin {
     lineManagerInstance.createSatToRef(this.selectSatManager_.primarySatObj, [0, 0, 0], LineColors.PURPLE);
   }
 
+  private drawSunAngle_() {
+    keepTrackApi.getSoundManager().play(SoundNames.CLICK);
+    if (this.selectSatManager_.secondarySat === -1) {
+      keepTrackApi.getUiManager().toast('No Secondary Satellite Selected', ToastMsgType.caution);
+      return;
+    }
+    if (this.isSunAngleDrawn_) {
+      // Remove existing line
+      lineManagerInstance.clear();
+      this.isSunAngleDrawn_ = false;
+    } else {
+      // Add lines
+      lineManagerInstance.createObjToObj(this.selectSatManager_.primarySatObj, this.selectSatManager_.secondarySatObj, LineColors.BLUE);
+      lineManagerInstance.createSat2Sun(this.selectSatManager_.primarySatObj);
+      this.isSunAngleDrawn_ = true;
+    }
+  }
+
+  // private changeTimeOffset_() {
+  //   const tcaDate = new Date(getEl('sat-sec-tca').getHTML().slice(0, 19) + 'Z')  // forcing the UTC Z
+  //   const timeManagerInstance = keepTrackApi.getTimeManager();
+
+  //   timeManagerInstance.changeStaticOffset(new Date(tcaDate).getTime() - timeManagerInstance.realTime);
+  //   timeManagerInstance.calculateSimulationTime();
+  //   keepTrackApi.runEvent(KeepTrackApiEvents.updateDateTime, new Date(timeManagerInstance.dynamicOffsetEpoch + timeManagerInstance.staticOffset));
+  // }
+
   private drawLineToSat_() {
     keepTrackApi.getSoundManager().play(SoundNames.CLICK);
     if (this.selectSatManager_.secondarySat === -1) {
@@ -586,7 +658,8 @@ export class SatInfoBox extends KeepTrackPlugin {
       periodDom.dataset.delay = '50';
       periodDom.dataset.tooltip = `Mean Motion: ${(MINUTES_PER_DAY / sat.period).toFixed(2)}`;
 
-      const now: Date | number | string = new Date();
+      // const now: Date | number | string = new Date();
+      const now = keepTrackApi.getTimeManager().getOffsetTimeObj(0)
       const daysold = SatMath.calcElsetAge(sat, now);
       const elsetAgeDom = getEl('sat-elset-age');
 
@@ -613,6 +686,8 @@ export class SatInfoBox extends KeepTrackPlugin {
       getEl('ric-angle-link')?.addEventListener('click', this.drawRicLines_.bind(this));
       getEl('nadir-angle-link')?.addEventListener('click', this.drawLineToEarth_.bind(this));
       getEl('sec-angle-link')?.addEventListener('click', this.drawLineToSat_.bind(this));
+      getEl('sat-sec-sunangle')?.addEventListener('click', this.drawSunAngle_.bind(this));
+      // getEl('sat-sec-tca')?.addEventListener('click', this.changeTimeOffset_.bind(this));
       this.isTopLinkEventListenersAdded_ = true;
     }
   };
@@ -720,7 +795,7 @@ export class SatInfoBox extends KeepTrackPlugin {
       }
 
       getEl('sat-altid').innerHTML = sat.altId || 'N/A';
-      getEl('sat-source').innerHTML = sat.source || CatalogSource.CELESTRAK;
+      getEl('sat-source').innerHTML = sat.source || CatalogSource.USSF;
       SatInfoBox.updateRcsData_(sat);
     }
   };
@@ -836,9 +911,9 @@ export class SatInfoBox extends KeepTrackPlugin {
               <div class="sat-info-value" id="sat-type">PAYLOAD</div>
             </div>
             <div class="sat-info-row">
-              <div class="sat-info-key" data-position="top" data-delay="50"
-                data-tooltip="Type of Object">Status</div>
-              <div class="sat-info-value" id="sat-status">STATUS</div>
+            <div class="sat-info-key" data-position="top" data-delay="50"
+              data-tooltip="Type of Object">Status</div>
+            <div class="sat-info-value" id="sat-status">STATUS</div>
             </div>
             <div class="sat-info-row sat-only-info">
               <div class="sat-info-key" data-position="top" data-delay="50"
@@ -899,10 +974,17 @@ export class SatInfoBox extends KeepTrackPlugin {
             </div>
             <div class="sat-info-row">
               <div class="sat-info-key" data-position="top" data-delay="50"
-                data-tooltip="Linear Distance from Secondary Satellite">
-                Linear
+                data-tooltip="Relative distance with Secondary Satellite">
+                Relative Distance
               </div>
               <div class="sat-info-value" id="sat-sec-dist">xxxx km</div>
+            </div>
+            <div class="sat-info-row">
+              <div class="sat-info-key" data-position="top" data-delay="50"
+                data-tooltip="Relative velocity with Secondary Satellite">
+                Relative Velocity
+              </div>
+              <div class="sat-info-value" id="sat-sec-vel">xxxx km/s</div>
             </div>
             <div class="sat-info-row">
               <div class="sat-info-key" data-position="top" data-delay="50"
@@ -924,6 +1006,23 @@ export class SatInfoBox extends KeepTrackPlugin {
                 Cross-Track
               </div>
               <div class="sat-info-value" id="sat-sec-crosstrack">xxxx km</div>
+            </div>
+            <!--
+            <div class="sat-info-row">
+              <div class="sat-info-key" data-position="top" data-delay="0"
+                data-tooltip="Next close approach between objects, computed on the next 5 orbits">
+                Next approach
+              </div>
+              <div class="sat-info-value" id="sat-sec-tca">XX</div>
+            </div>
+            -->
+            <div class="sat-info-row">
+              <div class="sat-info-key" data-position="top" data-delay="50"
+                data-tooltip="Relative Sun Angle between satellites. Click to show it">
+                Sun Angle
+              </div>
+              <div class="sat-info-value" data-position="top" data-delay="50"
+                data-tooltip="Show sun angle" id="sat-sec-sunangle">xxx°</div>
             </div>
           </div>
           `,

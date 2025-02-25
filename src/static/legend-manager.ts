@@ -7,6 +7,7 @@ import {
   astronomyDiv,
   confidenceDiv,
   countriesDiv,
+  dataSourceDiv,
   deepDiv,
   defaultDiv,
   defaultSensorDiv,
@@ -26,6 +27,7 @@ export abstract class LegendManager {
     '.legend-rocketBody-box',
     '.legend-debris-box',
     '.legend-inFOV-box',
+    '.legend-sensorCanObserve-box',
     '.legend-facility-box',
     '.legend-sensor-box',
     '.legend-facility-box',
@@ -67,6 +69,11 @@ export abstract class LegendManager {
     '.legend-densityMed-box',
     '.legend-densityLow-box',
     '.legend-densityOther-box',
+    '.legend-sourceUssf-box',
+    '.legend-sourceAldoria-box',
+    '.legend-sourceCelestrak-box',
+    '.legend-sourcePrismnet-box',
+    '.legend-sourceVimpel-box',
   ];
 
   private static readonly menuOptions = {
@@ -79,6 +86,7 @@ export abstract class LegendManager {
     velocity: velocityDiv,
     sunlight: sunlightDiv,
     ageOfElset: ageOfElsetDiv,
+    dataSource: dataSourceDiv,
     countries: countriesDiv,
     planetarium: planetariumDiv,
     astronomy: astronomyDiv,

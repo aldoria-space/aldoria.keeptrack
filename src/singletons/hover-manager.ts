@@ -1,3 +1,4 @@
+import { country2flagIcon } from '@app/catalogs/countries';
 import { keepTrackApi } from '@app/keepTrackApi';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
 import { CameraType } from '@app/singletons/camera';
@@ -8,7 +9,6 @@ import { SensorMath } from '../static/sensor-math';
 import { StringExtractor } from '../static/string-extractor';
 import { MissileObject } from './catalog-manager/MissileObject';
 import { errorManagerInstance } from './errorManager';
-import { country2flagIcon } from '@app/catalogs/countries';
 
 export class HoverManager {
   /** The id of the object currently being hovered */
