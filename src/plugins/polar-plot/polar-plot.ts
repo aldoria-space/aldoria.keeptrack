@@ -203,8 +203,9 @@ export class PolarPlotPlugin extends KeepTrackPlugin {
     this.ctx_.fillStyle = 'rgb(255, 255, 255)';
     this.ctx_.textAlign = 'center';
     this.ctx_.textBaseline = 'top';
-    this.ctx_.fillText(`Satellite ${(<DetailedSatellite>this.selectSatManager_.getSelectedSat()).sccNum}: ` +
-      `${this.passStartTime_.toISOString().slice(11, 19)} - ${this.passStopTime_.toISOString().slice(11, 19)}`, this.centerX_, 0);
+    this.ctx_.fillText(`${keepTrackApi.getSensorManager().getSensor().name} | `
+      + `Satellite ${(<DetailedSatellite>this.selectSatManager_.getSelectedSat()).sccNum} | `
+      + `${this.passStartTime_.toISOString().slice(11, 19)} - ${this.passStopTime_.toISOString().slice(11, 19)}`, this.centerX_, 0);
   }
 
   private setupCanvas_() {

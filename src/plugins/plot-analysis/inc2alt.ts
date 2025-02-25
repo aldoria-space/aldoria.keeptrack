@@ -80,19 +80,36 @@ export class Inc2AltPlots extends KeepTrackPlugin {
           color: '#fff',
         },
       },
-      tooltip: {},
+      tooltip: {
+        formatter: (params) => {
+          const data = params.value;
+          const color = params.color;
+          const name = params.name;
+          return `
+            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+              <div style="display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: flex-end;">
+                <div style="width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-bottom: 5px;"></div>
+                <div style="font-weight: bold;"> ${name}</div>
+              </div>
+              <div><bold>Inclination:</bold> ${data[1].toFixed(3)}°</div>
+              <div><bold>Altitude:</bold> ${data[0].toFixed(3)} km</div>
+              <div><bold>Period:</bold> ${data[2].toFixed(2)} min</div>
+            </div>
+          `;
+        },
+      },
       xAxis: {
-        name: 'Inclination',
+        name: 'Altitude (km)',
         type: 'value',
         position: 'bottom',
       },
       yAxis: {
-        name: 'Altitude',
+        name: 'Inclination (°)',
         type: 'value',
         position: 'left',
       },
       zAxis: {
-        name: 'Period',
+        name: 'Period (min)',
         type: 'value',
       },
       dataZoom: [
@@ -129,7 +146,7 @@ export class Inc2AltPlots extends KeepTrackPlugin {
           left: 'left',
           top: '10%',
           dimension: 2,
-          min: 80,
+          min: 60,
           max: 250,
           itemWidth: 30,
           itemHeight: 500,
@@ -183,6 +200,7 @@ export class Inc2AltPlots extends KeepTrackPlugin {
   static getPlotData(): EChartsData {
     const china = [];
     const usa = [];
+    const france = [];
     const russia = [];
     const other = [];
 
@@ -207,15 +225,22 @@ export class Inc2AltPlots extends KeepTrackPlugin {
         case 'United States of America':
         case 'United States':
         case 'US':
-          usa.push([sat.lla(now).alt, sat.inclination, sat.period, sat.name, sat.id]);
+        case 'USA':
+          usa.push([sat.inclination, sat.lla(now).alt, sat.period, sat.name, sat.id]);
 
           return;
+        case 'France':
+        case 'FR':
+          france.push([sat.inclination, sat.lla(now).alt, sat.period, sat.name, sat.id]);
+
+          return;
+
         case 'Russian Federation':
         case 'CIS':
         case 'RU':
         case 'SU':
         case 'Russia':
-          russia.push([sat.lla(now).alt, sat.inclination, sat.period, sat.name, sat.id]);
+          russia.push([sat.inclination, sat.lla(now).alt, sat.period, sat.name, sat.id]);
 
           return;
         case 'China':
@@ -224,16 +249,17 @@ export class Inc2AltPlots extends KeepTrackPlugin {
         case 'China (Republic)':
         case 'PRC':
         case 'CN':
-          china.push([sat.lla(now).alt, sat.inclination, sat.period, sat.name, sat.id]);
+          china.push([sat.inclination, sat.lla(now).alt, sat.period, sat.name, sat.id]);
 
           return;
         default:
-          other.push([sat.lla(now).alt, sat.inclination, sat.period, sat.name, sat.id]);
+          other.push([sat.inclination, sat.lla(now).alt, sat.period, sat.name, sat.id]);
 
       }
     });
 
     return [
+      { name: 'France', value: france },
       { name: 'USA', value: usa },
       { name: 'Other', value: other },
       { name: 'Russia', value: russia },

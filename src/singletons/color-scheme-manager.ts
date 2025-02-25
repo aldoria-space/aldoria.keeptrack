@@ -23,8 +23,8 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-import { ColorRuleSet, KeepTrackApiEvents } from '@app/interfaces';
-import { ColorInformation, Colors, Pickable, rgbaArray } from '../interfaces';
+import { ColorInformation, ColorRuleSet, KeepTrackApiEvents } from '@app/interfaces';
+import { Colors, Pickable, rgbaArray } from '../interfaces';
 import { keepTrackApi } from '../keepTrackApi';
 import { getEl } from '../lib/get-el';
 import { CameraType } from './camera';
@@ -68,6 +68,7 @@ export class ColorSchemeManager {
     pink: true,
     inFOV: true,
     inViewAlt: true,
+    sensorCanObserve: true,
     starLow: true,
     starMed: true,
     starHi: true,
@@ -106,6 +107,11 @@ export class ColorSchemeManager {
     densityOther: true,
     starlink: true,
     starlinkNot: true,
+    sourceUssf: true,
+    sourceAldoria: true,
+    sourceCelestrak: true,
+    sourcePrismnet: true,
+    sourceVimpel: true,
   };
 
   pickableBuffer: WebGLBuffer;
@@ -318,6 +324,132 @@ export class ColorSchemeManager {
     return {
       color: this.colorTheme.deselected,
       pickable: Pickable.No,
+    };
+  }
+
+  dataSource(obj: BaseObject): ColorInformation {
+    if (keepTrackApi.getMainCamera().cameraType === CameraType.PLANETARIUM) {
+      return {
+        color: this.colorTheme.deselected,
+        pickable: Pickable.No,
+      };
+    }
+
+    const checkFacility = this.checkFacility_(obj);
+    if (checkFacility) {
+      return checkFacility;
+    }
+
+    // Apply only for satellites
+    if (!obj.isSatellite()) {
+      if (obj.isMarker()) {
+        return this.getMarkerColor_();
+      }
+      if (obj.isSensor()) {
+        return {
+          color: this.colorTheme.sensor,
+          pickable: Pickable.Yes,
+        };
+      }
+      if (obj.isMissile()) {
+        return this.missileColor_(obj as MissileObject);
+      }
+      if (obj.isStar()) {
+        return this.starColor_(obj as Star)
+      }
+      return {
+        color: this.colorTheme.deselected,
+        pickable: Pickable.No,
+      };
+    }
+
+    // Check the source of the data
+    const sat = obj as DetailedSatellite;
+    if (sat.source) {
+      switch (sat.source) {
+        case 'USSF':
+          if (this.objectTypeFlags.sourceUssf === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.sourceUssf,
+            pickable: Pickable.Yes,
+          };
+
+        case 'Aldoria':
+          if (this.objectTypeFlags.sourceAldoria === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.sourceAldoria,
+            pickable: Pickable.Yes,
+          };
+
+        case 'Celestrak':
+          if (this.objectTypeFlags.sourceCelestrak === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.sourceCelestrak,
+            pickable: Pickable.Yes,
+          };
+
+        case 'Prismnet':
+          if (this.objectTypeFlags.sourcePrismnet === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.sourcePrismnet,
+            pickable: Pickable.Yes,
+          };
+
+
+        case 'JSC Vimpel':
+          if (this.objectTypeFlags.sourceVimpel === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.sourceVimpel,
+            pickable: Pickable.Yes,
+          };
+
+        default:
+          if (this.objectTypeFlags.countryOther === false) {
+            return {
+              color: this.colorTheme.deselected,
+              pickable: Pickable.No,
+            };
+          }
+          return {
+            color: this.colorTheme.countryOther,
+            pickable: Pickable.Yes,
+          };
+      }
+    }
+    if (this.objectTypeFlags.countryOther === false) {
+      return {
+        color: this.colorTheme.deselected,
+        pickable: Pickable.No,
+      };
+    }
+    return {
+      color: this.colorTheme.countryOther,
+      pickable: Pickable.Yes,
     };
   }
 
@@ -668,6 +800,13 @@ export class ColorSchemeManager {
       };
     }
 
+    if (keepTrackApi.getDotsManager().inViewData?.[sat.id] === 1 && this.objectTypeFlags.sensorCanObserve === true) {
+      return {
+        color: this.colorTheme.sensorCanObserve,
+        pickable: Pickable.Yes,
+      };
+    }
+
     if (this.objectTypeFlags.satGEO === false) {
       return {
         color: this.colorTheme.deselected,
@@ -713,6 +852,12 @@ export class ColorSchemeManager {
       }
 
       if (keepTrackApi.getDotsManager().inViewData?.[obj.id] === 1) {
+        // const sensorManagerInstance = keepTrackApi.getSensorManager();
+        // const canStationObserve = sensorManagerInstance.canStationsObserve(new Date(), sensorManagerInstance.currentSensors)
+
+        // if (canStationObserve) {
+        //   color = this.colorTheme.sensorCanObserve;
+        // }
         color = this.colorTheme.inFOV;
       }
 
@@ -765,7 +910,8 @@ export class ColorSchemeManager {
     this.gl_ = renderer.gl;
     this.colorTheme = settingsManager.colors || {
       transparent: [0, 0, 0, 0] as rgbaArray,
-      inFOV: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
+      inFOV: [0.0, 1.0, 0.0, 0.8] as rgbaArray,
+      sensorCanObserve: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
       deselected: [0.0, 0.0, 0.0, 0.0] as rgbaArray,
       sensor: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
       payload: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
@@ -825,6 +971,11 @@ export class ColorSchemeManager {
       rcsXXSmall: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
       version: '0',
       notional: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
+      sourceUssf: [1.0, 0.0, 0.0, 1.0] as rgbaArray,
+      sourceAldoria: [1.0, 0.0, 1.0, 1.0] as rgbaArray,
+      sourceCelestrak: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
+      sourcePrismnet: [0.0, 0.0, 1.0, 0.5] as rgbaArray,
+      sourceVimpel: [0.0, 1.0, 1.0, 0.5] as rgbaArray,
     };
 
     this.resetObjectTypeFlags();
@@ -928,6 +1079,15 @@ export class ColorSchemeManager {
     }
 
     if (this.isInView(sat)) {
+      // TODO: adding sensor visibility
+      // const sensorManagerInstance = keepTrackApi.getSensorManager();
+      // let canStationObserve = sensorManagerInstance.canStationsObserve(new Date(), sensorManagerInstance.currentSensors);
+      // if (canStationObserve) {
+      //   return {
+      //     color: this.colorTheme.sensorCanObserve,
+      //     pickable: Pickable.Yes,
+      //   };
+      // }
       return {
         color: this.colorTheme.inFOV,
         pickable: Pickable.Yes,
@@ -1233,6 +1393,7 @@ export class ColorSchemeManager {
     this.objectTypeFlags.pink = true;
     this.objectTypeFlags.inFOV = true;
     this.objectTypeFlags.inViewAlt = true;
+    this.objectTypeFlags.sensorCanObserve = true;
     this.objectTypeFlags.starLow = true;
     this.objectTypeFlags.starMed = true;
     this.objectTypeFlags.starHi = true;
@@ -1261,6 +1422,11 @@ export class ColorSchemeManager {
     this.objectTypeFlags.age7 = true;
     this.objectTypeFlags.starlink = true;
     this.objectTypeFlags.starlinkNot = true;
+    this.objectTypeFlags.sourceUssf = true;
+    this.objectTypeFlags.sourceAldoria = true;
+    this.objectTypeFlags.sourceCelestrak = true;
+    this.objectTypeFlags.sourcePrismnet = true;
+    this.objectTypeFlags.sourceVimpel = true;
   }
 
   async setColorScheme(scheme: ((obj: BaseObject, params?: any) => ColorInformation) | null, isForceRecolor?: boolean) {
@@ -1370,6 +1536,17 @@ export class ColorSchemeManager {
 
       }
       // TODO: Work out a system for vmag filtering
+      // TODO: adding sensor visibility
+      // const sensorManagerInstance = keepTrackApi.getSensorManager();
+      // let canStationObserve = sensorManagerInstance.canStationsObserve(new Date(), sensorManagerInstance.currentSensors)
+
+      // if (canStationObserve) {
+      //   return {
+      //     color: this.colorTheme.sensorCanObserve,
+      //     pickable: Pickable.Yes,
+      //   };
+      // };
+
       return {
         color: this.colorTheme.sunlightInview,
         pickable: Pickable.Yes,
@@ -1848,6 +2025,7 @@ export class ColorSchemeManager {
         case this.rcs:
         case this.countries:
         case this.ageOfElset:
+        case this.dataSource:
         case this.neighbors:
         case this.lostobjects:
         case this.leo:
@@ -1961,6 +2139,7 @@ export interface ColorSchemeColorMap {
   missileInview: [number, number, number, number];
   pink: [number, number, number, number];
   inFOV: [number, number, number, number];
+  sensorCanObserve: [number, number, number, number];
   starLow: [number, number, number, number];
   starMed: [number, number, number, number];
   starHi: [number, number, number, number];
@@ -2016,4 +2195,9 @@ export interface ColorSchemeColorMap {
   inGroup: [number, number, number, number];
   starlink: [number, number, number, number];
   starlinkNot: [number, number, number, number];
+  sourceUssf: [number, number, number, number],
+  sourceAldoria: [number, number, number, number],
+  sourceCelestrak: [number, number, number, number],
+  sourcePrismnet: [number, number, number, number],
+  sourceVimpel: [number, number, number, number],
 }

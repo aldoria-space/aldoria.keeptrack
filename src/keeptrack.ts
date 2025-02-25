@@ -30,13 +30,12 @@
 
 import logoPng from '@public/img/kts-text-logo.png';
 import cubesatJpg from '@public/img/wallpaper/cubesat.jpg';
+import earthJpg from '@public/img/wallpaper/Earth.jpg';
 import issJpg from '@public/img/wallpaper/iss.jpg';
 import observatoryJpg from '@public/img/wallpaper/observatory.jpg';
-import rocketJpg from '@public/img/wallpaper/rocket.jpg';
-import rocket2Jpg from '@public/img/wallpaper/rocket2.jpg';
 import rocket3Jpg from '@public/img/wallpaper/rocket3.jpg';
-import rocket4Jpg from '@public/img/wallpaper/rocket4.jpg';
 import satJpg from '@public/img/wallpaper/sat.jpg';
+import sat2Jpg from '@public/img/wallpaper/sat2.jpg';
 import telescopeJpg from '@public/img/wallpaper/telescope.jpg';
 import thuleJpg from '@public/img/wallpaper/thule.jpg';
 
@@ -77,7 +76,7 @@ import { SplashScreen } from './static/splash-screen';
 
 export class KeepTrack {
   /** An image is picked at random and then if the screen is bigger than 1080p then it loads the next one in the list */
-  private static splashScreenImgList_ = [observatoryJpg, thuleJpg, rocketJpg, rocket2Jpg, telescopeJpg, issJpg, rocket3Jpg, rocket4Jpg, cubesatJpg, satJpg];
+  private static splashScreenImgList_ = [observatoryJpg, thuleJpg, telescopeJpg, issJpg, rocket3Jpg, cubesatJpg, satJpg, sat2Jpg, earthJpg];
 
   private isShowFPS = false;
   isReady = false;

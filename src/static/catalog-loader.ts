@@ -130,7 +130,7 @@ export interface KeepTrackTLEFile {
 }
 
 export class CatalogLoader {
-  static filterTLEDatabase(resp: KeepTrackTLEFile[], extraSats?: ExtraSat[], asciiCatalog?: AsciiTleSat[] | void, jsCatalog?: JsSat[]): void {
+  static filterTLEDatabase(resp: KeepTrackTLEFile[], extraSats?: ExtraSat[], asciiCatalog?: AsciiTleSat[] | void, jsCatalog?: JsSat[], lCatalog?: KeepTrackTLEFile[]): void {
     let tempObjData: BaseObject[] = [];
     const catalogManagerInstance = keepTrackApi.getCatalogManager();
 
@@ -160,6 +160,16 @@ export class CatalogLoader {
       CatalogLoader.processJsCatalog_(jsCatalog, catalogManagerInstance, tempObjData);
     }
 
+    if (lCatalog?.length > 0) {
+      for (let i = 0; i < lCatalog.length; i++) {
+        CatalogLoader.addSccNum_(lCatalog, i);
+
+        // Check if first digit is a letter
+        lCatalog[i].sccNum = Tle.convertA5to6Digit(lCatalog[i]?.sccNum);
+
+        CatalogLoader.processAllSats_(lCatalog, i, catalogManagerInstance, tempObjData, notionalSatNum);
+      }
+    }
     CatalogLoader.addNonSatelliteObjects_(catalogManagerInstance, tempObjData);
 
     catalogManagerInstance.objectCache = tempObjData;
@@ -188,7 +198,8 @@ export class CatalogLoader {
 
     try {
 
-      if (settingsManager.dataSources.tle === 'https://api.keeptrack.space/v2/sats' || settingsManager.dataSources.tle === 'http://localhost:8787/v2/sats') {
+
+      if (settingsManager.dataSources.tle === 'https://api.keeptrack.space/v2/sats' || settingsManager.dataSources.tle === '/tle/TLE2.json') {
         if (!settingsManager.limitSats) {
           CatalogLoader.setupGetVariables();
         }
@@ -201,7 +212,8 @@ export class CatalogLoader {
         asciiCatalog,
         jsCatalog,
         externalCatalog,
-      }: { extraSats: Promise<ExtraSat[]>; asciiCatalog: Promise<AsciiTleSat[] | void>; jsCatalog: Promise<JsSat[]>; externalCatalog: Promise<AsciiTleSat[] | void> } =
+        lCatalog,
+      }: { extraSats: Promise<ExtraSat[]>; asciiCatalog: Promise<AsciiTleSat[] | void>; jsCatalog: Promise<JsSat[]>; externalCatalog: Promise<AsciiTleSat[] | void>; lCatalog: Promise<KeepTrackTLEFile[]> } =
         CatalogLoader.getAdditionalCatalogs_(settingsManager);
 
       if (settingsManager.externalTLEsOnly) {
@@ -211,6 +223,7 @@ export class CatalogLoader {
           .then((data) => CatalogLoader.parse({
             keepTrackTle: data,
             externalCatalog,
+            launchCatalog: lCatalog
           }))
           .catch((error) => {
             errorManagerInstance.error(error, 'tleManagerInstance.loadCatalog');
@@ -224,6 +237,7 @@ export class CatalogLoader {
             keepTrackExtra: extraSats,
             keepTrackAscii: asciiCatalog,
             vimpelCatalog: jsCatalog,
+            launchCatalog: lCatalog
           }))
           .catch((error) => {
             errorManagerInstance.error(error, 'tleManagerInstance.loadCatalog');
@@ -238,6 +252,7 @@ export class CatalogLoader {
             keepTrackAscii: asciiCatalog,
             externalCatalog,
             vimpelCatalog: jsCatalog,
+            launchCatalog: lCatalog
           }))
           .catch(async (error) => {
             if (error.message === 'Failed to fetch') {
@@ -269,6 +284,7 @@ export class CatalogLoader {
    *    - asciiCatalog: A Promise that resolves to an array of AsciiTleSat objects.
    *    - externalCatalog: (optional) A Promise that resolves to an array of AsciiTleSat objects or void.
    * @param jsCatalog - A Promise that resolves to an array of JsSat objects.
+   * @param lCatalog - A Promise that resolves to an array of launch objects.
    */
   static async parse({
     keepTrackTle: resp = [],
@@ -276,15 +292,18 @@ export class CatalogLoader {
     keepTrackAscii: asciiCatalog = Promise.resolve([]),
     externalCatalog = Promise.resolve([]),
     vimpelCatalog: jsCatalog = Promise.resolve([]),
+    launchCatalog: lCatalog = Promise.resolve([]),
   }: {
     keepTrackTle?: KeepTrackTLEFile[];
     keepTrackExtra?: Promise<ExtraSat[]>;
     keepTrackAscii?: Promise<AsciiTleSat[] | void>;
     externalCatalog?: Promise<AsciiTleSat[] | void>;
     vimpelCatalog?: Promise<JsSat[]>;
+    launchCatalog?: Promise<KeepTrackTLEFile[]>;
   }): Promise<void> {
-    await Promise.all([extraSats, asciiCatalog, externalCatalog, jsCatalog]).then(([extraSats, asciiCatalog, externalCatalog, jsCatalog]) => {
+    await Promise.all([extraSats, asciiCatalog, externalCatalog, jsCatalog, lCatalog]).then(([extraSats, asciiCatalog, externalCatalog, jsCatalog, lCatalog]) => {
       asciiCatalog = externalCatalog || asciiCatalog;
+      // const limitSatsArray = !settingsManager.limitSats ? CatalogLoader.setupGetVariables() : settingsManager.limitSats.split(',');
 
       // Make sure everyone agrees on what time it is
       keepTrackApi.getTimeManager().synchronize();
@@ -293,7 +312,7 @@ export class CatalogLoader {
        * Filter TLEs
        * Sets catalogManagerInstance.satData internally to reduce memory usage
        */
-      CatalogLoader.filterTLEDatabase(resp, extraSats, asciiCatalog, jsCatalog);
+      CatalogLoader.filterTLEDatabase(resp, extraSats, asciiCatalog, jsCatalog, lCatalog);
 
       const catalogManagerInstance = keepTrackApi.getCatalogManager();
 
@@ -329,6 +348,8 @@ export class CatalogLoader {
       switch (key) {
         case 'limitSats':
           settingsManager.limitSats = val;
+          // (<HTMLInputElement>getEl('limitSats')).value = val;
+          // getEl('limitSats-Label').classList.add('active');
           limitSatsArray = val.split(',');
           break;
         case 'future use':
@@ -397,6 +418,17 @@ export class CatalogLoader {
   }
 
   /**
+   * Checks if there are any limit sats and sets the settingsManager accordingly.
+   * @param limitSatsArray - An array of limit sats.
+   */
+  // private static checkForLimitSats_(limitSatsArray: string[]) {
+  //   if (typeof limitSatsArray === 'undefined' || limitSatsArray.length === 0 || limitSatsArray[0] === null) {
+  //     // If there are no limits then just process like normal
+  //     settingsManager.limitSats = '';
+  //   }
+  // }
+
+  /**
    * Removes any extra lines and \r characters from the given string array.
    * @param content - The string array to be cleaned.
    */
@@ -435,6 +467,7 @@ export class CatalogLoader {
     let externalCatalog: Promise<AsciiTleSat[] | void> = null;
     let asciiCatalog: Promise<AsciiTleSat[]> = null;
     let jsCatalog: Promise<JsSat[]> = null;
+    let lCatalog: Promise<KeepTrackTLEFile[]> = null;
 
     if (settingsManager.offline && !settingsManager.isDisableExtraCatalog) {
       extraSats = CatalogLoader.getExtraCatalog_(settingsManager);
@@ -448,8 +481,9 @@ export class CatalogLoader {
     if (settingsManager.externalTLEs) {
       externalCatalog = CatalogLoader.getExternalCatalog_(settingsManager);
     }
+    lCatalog = CatalogLoader.getLaunchCatalog_(settingsManager);
 
-    return { extraSats, asciiCatalog, jsCatalog, externalCatalog };
+    return { extraSats, asciiCatalog, jsCatalog, externalCatalog, lCatalog };
   }
 
   /**
@@ -536,6 +570,27 @@ export class CatalogLoader {
   }
 
   /**
+   * Retrieves the launch nominal catalog.
+   * @param settingsManager - The settings manager to retrieve the catalog from.
+   * @returns A promise that resolves to an array of Launch Nominals objects.
+   */
+  // eslint-disable-next-line require-await
+  private static async getLaunchCatalog_(settingsManager: SettingsManager): Promise<KeepTrackTLEFile[]> {
+    return fetch(settingsManager.dataSources.launch)
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        }
+        // errorManagerInstance.warn('Error loading launch.json');
+
+        return [];
+      })
+      .catch(() => {
+        errorManagerInstance.warn('Error loading launch.json');
+      });
+  }
+
+  /**
    * Retrieves the JsSat catalog from the specified settings manager.
    * @param settingsManager - The settings manager to retrieve the catalog from.
    * @returns A promise that resolves to an array of JsSat objects.
@@ -547,7 +602,7 @@ export class CatalogLoader {
         if (response.ok) {
           return response.json();
         }
-        errorManagerInstance.warn('Error loading vimpel.json');
+        // errorManagerInstance.warn('Error loading vimpel.json');
 
         return [];
 
@@ -689,18 +744,48 @@ export class CatalogLoader {
     const intlDes = CatalogLoader.parseIntlDes_(resp[i].tle1);
 
     resp[i].intlDes = intlDes;
+    // catalogManagerInstance.sccIndex[`${resp[i].sccNum}`] = i;
+    // catalogManagerInstance.cosparIndex[`${resp[i].intlDes}`] = i;
     resp[i].active = true;
     if (!settingsManager.isDebrisOnly || (settingsManager.isDebrisOnly && (resp[i].type === 2 || resp[i].type === 3))) {
       resp[i].id = tempObjData.length;
-      resp[i].source = CatalogSource.CELESTRAK;
+      if (resp[i].source == null) {
+        const source = Tle.classification(resp[i].tle1);
+
+        switch (source) {
+          case 'U':
+            resp[i].source = CatalogSource.USSF;
+            break;
+          case 'C':
+            resp[i].source = CatalogSource.CELESTRAK;
+            break;
+          case 'M':
+            resp[i].source = CatalogSource.UNIV_OF_MICH;
+            break;
+          case 'V':
+            resp[i].source = CatalogSource.VIMPEL;
+            break;
+          case 'A':
+          case 'L':
+            resp[i].source = CatalogSource.ALDORIA;
+            break;
+          default:
+            // Default to USSF for now
+            resp[i].source = CatalogSource.USSF;
+        }
+      }
 
       /*
        * Embed a confidence level into the 64th character of the TLE1
        * All 9s is the default value
        * TODO: Generate a better confidence level system
        */
-      if (resp[i].source === CatalogSource.CELESTRAK) {
+      if (resp[i].source === CatalogSource.USSF) {
         resp[i].tle1 = `${resp[i].tle1.substring(0, 64)}9${resp[i].tle1.substring(65)}` as TleLine1;
+      } else if (resp[i].source === CatalogSource.ALDORIA) {
+        resp[i].tle1 = `${resp[i].tle1.substring(0, 64)}8${resp[i].tle1.substring(65)}` as TleLine1;
+      } else if (resp[i].source === CatalogSource.PRISMNET) {
+        resp[i].tle1 = `${resp[i].tle1.substring(0, 64)}1${resp[i].tle1.substring(65)}` as TleLine1;
       } else {
         resp[i].tle1 = `${resp[i].tle1.substring(0, 64)}5${resp[i].tle1.substring(65)}` as TleLine1;
       }
@@ -714,7 +799,6 @@ export class CatalogLoader {
 
       // Never fail just because of one bad satellite
       let isAddedToCatalog = false;
-
       try {
         const satellite = new DetailedSatellite({
           id: tempObjData.length,
@@ -990,6 +1074,61 @@ export class CatalogLoader {
       }
     }
   }
+
+  // private static processLimitedSats_(limitSatsArray: string[], resp: KeepTrackTLEFile[], i: number, catalogManagerInstance: CatalogManager, tempObjData: any[]) {
+  //   for (const limitSat of limitSatsArray) {
+  //     if (resp[i].sccNum === limitSat) {
+  //       const intlDes = CatalogLoader.parseIntlDes_(resp[i].tle1);
+
+  //       resp[i].intlDes = intlDes;
+  //       catalogManagerInstance.sccIndex[`${resp[i].sccNum}`] = resp[i].id;
+  //       catalogManagerInstance.cosparIndex[`${resp[i].intlDes}`] = resp[i].id;
+  //       resp[i].active = true;
+  //       const source = Tle.classification(resp[i].tle1);
+
+  //       switch (source) {
+  //         case 'U':
+  //           resp[i].source = CatalogSource.USSF;
+  //           break;
+  //         case 'C':
+  //           resp[i].source = CatalogSource.CELESTRAK;
+  //           break;
+  //         case 'M':
+  //           resp[i].source = CatalogSource.UNIV_OF_MICH;
+  //           break;
+  //         case 'N':
+  //           resp[i].source = CatalogSource.NUSPACE;
+  //           break;
+  //         case 'P':
+  //           resp[i].source = CatalogSource.CALPOLY;
+  //           break;
+  //         case 'V':
+  //           resp[i].source = CatalogSource.VIMPEL;
+  //           break;
+  //         default:
+  //           // Default to USSF for now
+  //           resp[i].source = CatalogSource.USSF;
+  //       }
+
+  //       let rcs: number | null;
+
+  //       rcs = resp[i].rcs === 'LARGE' ? 5 : rcs;
+  //       rcs = resp[i].rcs === 'MEDIUM' ? 0.5 : rcs;
+  //       rcs = resp[i].rcs === 'SMALL' ? 0.05 : rcs;
+  //       rcs = resp[i].rcs && !isNaN(parseFloat(resp[i].rcs)) ? parseFloat(resp[i].rcs) : rcs ?? null;
+
+  //       const satellite = new DetailedSatellite({
+  //         id: tempObjData.length,
+  //         tle1: resp[i].tle1,
+  //         tle2: resp[i].tle2,
+  //         ...resp[i],
+  //         rcs,
+  //       });
+
+  //       tempObjData.push(satellite);
+  //     }
+  //   }
+  // }
 
   private static sortByScc_(catalog: AsciiTleSat[] | ExtraSat[]) {
     catalog.sort((a: { SCC: string }, b: { SCC: string }) => {
