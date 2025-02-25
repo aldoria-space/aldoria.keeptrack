@@ -100,6 +100,7 @@ export class RicPlot extends KeepTrackPlugin {
     if (!this.isMenuButtonActive) {
       return;
     }
+    console.log('create Plot Data', data)
 
     // Delete any old charts and start fresh
     if (this.chart) {
@@ -125,6 +126,7 @@ export class RicPlot extends KeepTrackPlugin {
         formatter: (params) => {
           const data = params.value;
           const color = params.color;
+          console.log('plot Data', data)
           // Create a small circle to show the color of the satellite
 
           return `
@@ -133,6 +135,7 @@ export class RicPlot extends KeepTrackPlugin {
                 <div style="width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-bottom: 5px;"></div>
                 <div style="font-weight: bold;"> ${params.seriesName}</div>
               </div>
+              <div>${data[3]}</div>
               <div>${X_AXIS}: ${data[0].toFixed(2)} km</div>
               <div>${Y_AXIS}: ${data[1].toFixed(2)} km</div>
               <div>${Z_AXIS}: ${data[2].toFixed(2)} km</div>
@@ -183,7 +186,7 @@ export class RicPlot extends KeepTrackPlugin {
           itemStyle: {
             opacity: 1 - idx / sat.value.length, // opacity by time
           },
-          value: [item[app.fieldIndices[app.config.xAxis3D]], item[app.fieldIndices[app.config.yAxis3D]], item[app.fieldIndices[app.config.zAxis3D]]],
+          value: [item[app.fieldIndices[app.config.xAxis3D]], item[app.fieldIndices[app.config.yAxis3D]], item[app.fieldIndices[app.config.zAxis3D]], item[3]],
         })),
         symbolSize: 12,
         itemStyle: {
@@ -248,9 +251,23 @@ export class RicPlot extends KeepTrackPlugin {
     const satP = keepTrackApi.getCatalogManager().getObject(this.selectSatManager_.selectedSat) as DetailedSatellite;
     const satS = this.selectSatManager_.secondarySatObj;
 
-    data.push({ name: satP.name, value: [[0, 0, 0]] });
-    data.push({ name: satS.name, value: SatMathApi.getRicOfCurrentOrbit(satS, satP, NUMBER_OF_POINTS, NUMBER_OF_ORBITS).map((point) => [point.x, point.y, point.z]) });
+    // Time management
+    const now = keepTrackApi.getTimeManager().simulationTimeObj.getTime();
+    const timeData: Date[] = [];
 
+    for (let i = 0; i < NUMBER_OF_POINTS * NUMBER_OF_ORBITS; i++) {
+      const date = new Date(now + satS.period * 60 * i / (NUMBER_OF_POINTS * NUMBER_OF_ORBITS) * 1000);
+      timeData.push(date);
+    }
+    data.push({
+      name: satP.name,
+      value: [[0, 0, 0, timeData[0].toISOString()]],
+    });
+    data.push({
+      name: satS.name,
+      value: SatMathApi.getRicOfCurrentOrbit(satS, satP, NUMBER_OF_POINTS, NUMBER_OF_ORBITS).map((point: any, idx: number) => [point.x, point.y, point.z, timeData[idx].toISOString()]),
+      // value: SatMathApi.getRicOfCurrentOrbit(satS, satP, NUMBER_OF_POINTS, NUMBER_OF_ORBITS).map((point) => [point.x, point.y, point.z]),
+    });
     return data;
   }
 }

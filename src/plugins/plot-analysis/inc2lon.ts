@@ -68,7 +68,7 @@ export class Inc2LonPlots extends KeepTrackPlugin {
     // Setup Chart
     this.chart.setOption({
       title: {
-        text: 'Inclination vs Longitude Scatter Plot',
+        text: 'GEO Inclination vs Longitude Scatter Plot',
         textStyle: {
           fontSize: 16,
           color: '#fff',
@@ -80,19 +80,36 @@ export class Inc2LonPlots extends KeepTrackPlugin {
           color: '#fff',
         },
       },
-      tooltip: {},
+      tooltip: {
+        formatter: (params) => {
+          const data = params.value;
+          const color = params.color;
+          const name = params.name;
+          return `
+            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+              <div style="display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: flex-end;">
+                <div style="width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-bottom: 5px;"></div>
+                <div style="font-weight: bold;"> ${name}</div>
+              </div>
+              <div><bold>Inclination:</bold> ${data[1].toFixed(3)}°</div>
+              <div><bold>Longitude:</bold> ${data[0].toFixed(3)}°</div>
+              <div><bold>Period:</bold> ${data[2].toFixed(2)} min</div>
+            </div>
+          `;
+        },
+      },
       xAxis: {
-        name: 'Longitude',
+        name: 'Longitude (°)',
         type: 'value',
         position: 'bottom',
       },
       yAxis: {
-        name: 'Inclination',
+        name: 'Inclination (°)',
         type: 'value',
         position: 'left',
       },
       zAxis: {
-        name: 'Period',
+        name: 'Period (min)',
         type: 'value',
       },
       dataZoom: [
@@ -183,6 +200,7 @@ export class Inc2LonPlots extends KeepTrackPlugin {
   static getPlotData(): EChartsData {
     const china = [];
     const usa = [];
+    const france = [];
     const russia = [];
     const other = [];
 
@@ -213,6 +231,7 @@ export class Inc2LonPlots extends KeepTrackPlugin {
         case 'United States of America':
         case 'United States':
         case 'US':
+        case 'USA':
           usa.push([sat.inclination, lla.lon, sat.period, sat.name, sat.id]);
 
           return;
@@ -222,6 +241,12 @@ export class Inc2LonPlots extends KeepTrackPlugin {
           russia.push([sat.inclination, lla.lon, sat.period, sat.name, sat.id]);
 
           return;
+        case 'France':
+        case 'FR':
+          france.push([sat.inclination, lla.lon, sat.period, sat.name, sat.id]);
+
+          return;
+
         case 'China':
         case 'China, People\'s Republic of':
         case 'Hong Kong Special Administrative Region, China':
@@ -236,6 +261,7 @@ export class Inc2LonPlots extends KeepTrackPlugin {
     });
 
     return [
+      { name: 'France', value: france },
       { name: 'USA', value: usa },
       { name: 'Other', value: other },
       { name: 'Russia', value: russia },
