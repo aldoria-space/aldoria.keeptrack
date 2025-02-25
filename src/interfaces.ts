@@ -48,7 +48,8 @@ export type EChartsData = {
   name: string;
   satId?: number;
   country?: string;
-  value?: [number, number, number][];
+  value?: [number, number, number, any?][];
+  // value?: [number, number, number][];
   data?: [number, number, number?][];
 }[];
 
@@ -79,6 +80,7 @@ export interface Colors {
   gradientAmt: number;
   inFOV: rgbaArray;
   inFOVAlt: rgbaArray;
+  sensorCanObserve: rgbaArray;
   inGroup: rgbaArray;
   length: number;
   lostobjects: rgbaArray;
@@ -116,6 +118,11 @@ export interface Colors {
   umbral: rgbaArray;
   unknown: rgbaArray;
   version: string;
+  sourceUssf: rgbaArray,
+  sourceAldoria: rgbaArray,
+  sourceCelestrak: rgbaArray,
+  sourcePrismnet: rgbaArray,
+  sourceVimpel: rgbaArray,
 }
 
 export interface SatCruncherMessageData {
@@ -244,6 +251,7 @@ export interface ObjectTypeFlags {
   densityPayload: boolean;
   facility: boolean;
   inFOV: boolean;
+  sensorCanObserve: boolean;
   inViewAlt: boolean;
   missile: boolean;
   missileInview: boolean;
@@ -267,6 +275,11 @@ export interface ObjectTypeFlags {
   velocityFast: boolean;
   velocityMed: boolean;
   velocitySlow: boolean;
+  sourceUssf: boolean,
+  sourceAldoria: boolean,
+  sourceCelestrak: boolean,
+  sourcePrismnet: boolean,
+  sourceVimpel: boolean,
 }
 
 export enum Pickable {
@@ -359,6 +372,7 @@ export enum KeepTrackApiEvents {
    */
   rightBtnMenuAdd = 'rightBtnMenuAdd',
   updateDateTime = 'updateDateTime',
+  updatePropRate = 'updatePropRate',
   uiManagerFinal = 'uiManagerFinal',
   resetSensor = 'resetSensor',
   /**

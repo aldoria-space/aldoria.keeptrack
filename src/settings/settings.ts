@@ -88,7 +88,9 @@ export class SettingsManager {
     timelineAlt: true,
     transponderChannelData: true,
     calculator: true,
+    createSat: true,
   };
+
 
   static preserveSettings() {
     PersistenceManager.getInstance().saveItem(StorageKey.SETTINGS_LEO_SATS, settingsManager.isShowLeoSats.toString());
@@ -413,7 +415,7 @@ export class SettingsManager {
   /**
    * Used for disabling the copyright text on screenshots and the map.
    */
-  copyrightOveride = false;
+  copyrightOveride = true;
   /**
    * Global flag for determining if the cruncher's loading is complete
    */
@@ -571,9 +573,13 @@ export class SettingsManager {
      *
      * It can be loaded from a local file or a remote source
      */
-    tle: 'https://api.keeptrack.space/v2/sats',
-    tleDebris: 'https://app.keeptrack.space/tle/TLEdebris.json',
-    vimpel: 'https://r2.keeptrack.space/vimpel.json',
+    tle: '/tle/TLE2.json',
+    tleDebris: '/tle/TLEdebris.json',
+    launch: '/tle/launch.json',
+    vimpel: '/tle/vimpel.json',
+    // tle: 'https://api.keeptrack.space/v2/sats',
+    // tleDebris: 'https://app.keeptrack.space/tle/TLEdebris.json',
+    // vimpel: 'https://r2.keeptrack.space/vimpel.json',
   };
   /**
    * Determines whether or not to hide the propogation rate text on the GUI.
@@ -788,7 +794,7 @@ export class SettingsManager {
    * TODO: Reimplement stars
    */
   isDisableStars = true;
-  offline = false;
+  offline = true;
   /**
    * The offset in the x direction for the offset camera mode.
    */
@@ -832,7 +838,7 @@ export class SettingsManager {
   /**
    * Determines whether or not to use political map texture for the Earth.
    */
-  politicalImages = false;
+  politicalImages = true;
   /**
    * url for an external TLE source
    */
@@ -943,6 +949,7 @@ export class SettingsManager {
    * Automatically display all of the orbits
    */
   startWithOrbitsDisplayed = false;
+  tleSource = '';
   brownEarthImages = false;
   /**
    * How many draw calls to wait before updating orbit overlay if last draw time was greater than 50ms
@@ -1069,7 +1076,7 @@ export class SettingsManager {
   externalTLEsOnly = false;
   positionCruncher: Worker = null;
   orbitCruncher: Worker = null;
-  /** Disables the camera widget by default */
+  /** Enables the camera widget */
   drawCameraWidget = false;
 
   loadPersistedSettings() {
@@ -1290,9 +1297,9 @@ export class SettingsManager {
       // eslint-disable-next-line no-console
       console.warn('Settings Manager: Unable to get color settings - localStorage issue!');
     }
-    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.4.1') {
+    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.4.2') {
       this.colors = {
-        version: '1.4.1',
+        version: '1.4.2',
         length: 0,
         facility: [0.64, 0.0, 0.64, 1.0],
         sunlight100: [1.0, 1.0, 1.0, 0.7],
@@ -1323,8 +1330,9 @@ export class SettingsManager {
           [0.6, 0.5, 1.0, 1.0],
         ],
         deselected: [1.0, 1.0, 1.0, 0],
-        inFOV: [0.85, 0.5, 0.0, 1.0],
+        inFOV: [0.85, 0.5, 0.5, 1.0],
         inFOVAlt: [0.2, 0.4, 1.0, 1],
+        sensorCanObserve: [0.85, 0.5, 0.0, 1.0],
         payload: [0.2, 1.0, 0.0, 0.5],
         rocketBody: [0.2, 0.4, 1.0, 1],
         debris: [0.5, 0.5, 0.5, 1],
@@ -1337,7 +1345,7 @@ export class SettingsManager {
         satHi: [1.0, 1.0, 1.0, 1.0],
         satMed: [1.0, 1.0, 1.0, 0.8],
         satLow: [1.0, 1.0, 1.0, 0.6],
-        sunlightInview: [0.85, 0.5, 0.0, 1.0],
+        sunlightInview: [0.85, 0.5, 0.5, 1.0],
         penumbral: [1.0, 1.0, 1.0, 0.3],
         umbral: [1.0, 1.0, 1.0, 0.1],
         /*
@@ -1385,6 +1393,11 @@ export class SettingsManager {
         notional: [1, 0, 0, 0.8],
         starlink: [0.0, 0.8, 0.0, 0.8],
         starlinkNot: [0.8, 0.0, 0.0, 0.8],
+        sourceUssf: [0.2, 1.0, 1.0, 0.7],
+        sourceAldoria: [0.2, 0.4, 1.0, 1],
+        sourceCelestrak: [1.0, 0.4, 0.0, 0.65],
+        sourcePrismnet: [1.0, 1.0, 1.0, 0.8],
+        sourceVimpel: [1.0, 0, 0, 0.6],
       };
 
       PersistenceManager.getInstance().saveItem(StorageKey.SETTINGS_DOT_COLORS, JSON.stringify(this.colors));
@@ -1445,7 +1458,6 @@ export class SettingsManager {
    * This is an initial parse of the GET variables to determine
    * critical settings. Other variables are checked later during catalogManagerInstance.init
    */
-  // eslint-disable-next-line complexity
   private initParseFromGETVariables_(params: string[]) {
     if (!this.disableUI) {
       for (const param of params) {
@@ -1473,6 +1485,9 @@ export class SettingsManager {
               case 'sateliot':
                 sateliot(settingsManager);
                 break;
+              // case 'demo':
+              //     geoRpo(settingsManager);
+              //     break;
               case 'million-year':
                 SettingsPresets.loadPresetMillionYear(this);
                 break;
@@ -1494,9 +1509,6 @@ export class SettingsManager {
             break;
           case 'external-only':
             this.externalTLEsOnly = true;
-            break;
-          case 'gp':
-            this.dataSources.tle = decodeURIComponent(val);
             break;
           case 'tle':
             // Decode from UTF-8
@@ -1590,6 +1602,10 @@ export class SettingsManager {
             break;
           case 'political':
             this.politicalImages = true;
+            break;
+          case 'retro':
+            this.retro = true;
+            this.tleSource = 'tle/retro.json';
             break;
           case 'offline':
             this.offline = true;
